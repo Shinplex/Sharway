@@ -1,7 +1,7 @@
 import { Handlers } from "$fresh/server.ts";
 
 const client_id = "cwP3kVVnjAMrrfCgseGd57I0eRLvuMKN";
-const redirect_uri = "http://localhost:8000/oauth2/callback"; // We will create this callback route later
+const redirect_uri = "https://sharway.deno.dev/oauth2/callback"; // We will create this callback route later
 const authorize_endpoint = "https://connect.linux.do/oauth2/authorize";
 
 export const handler: Handlers = {
