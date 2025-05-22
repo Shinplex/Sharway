@@ -26,6 +26,18 @@ export const handler: Handlers<Data> = {
     const claimedItems = await getClaimedItems(distributionId);
     const user = ctx.state.user as User | undefined;
 
+    // 如果用户未登录，重定向到登录页面
+    if (!user) {
+      const currentUrl = new URL(req.url);
+      const redirectTo = currentUrl.pathname + currentUrl.search;
+      return new Response(null, {
+        status: 302,
+        headers: {
+          Location: `/login?redirect=${encodeURIComponent(redirectTo)}`,
+        },
+      });
+    }
+
     let canClaim = false;
     let claimedItemIndex: number | null = null;
 
