@@ -16,7 +16,6 @@ export interface ClaimedItem {
   item_index: number;
   claimed_by: number; // User ID
   claimed_at: Date;
-  claimer_ip: string;
 }
 
 const kv = await Deno.openKv();
@@ -58,7 +57,7 @@ export async function getClaimedItems(distributionId: string): Promise<ClaimedIt
   return claimedItems;
 }
 
-export async function claimItem(distributionId: string, itemIndex: number, claimedBy: number, claimerIp: string): Promise<ClaimedItem | null> {
+export async function claimItem(distributionId: string, itemIndex: number, claimedBy: number): Promise<ClaimedItem | null> {
   const key = ["claimed_items", distributionId, itemIndex];
   const existingClaim = await kv.get<ClaimedItem>(key);
 
@@ -71,7 +70,6 @@ export async function claimItem(distributionId: string, itemIndex: number, claim
     item_index: itemIndex,
     claimed_by: claimedBy,
     claimed_at: new Date(),
-    claimer_ip: claimerIp,
   };
 
   const ok = await kv.atomic()
@@ -86,14 +84,6 @@ export async function claimItem(distributionId: string, itemIndex: number, claim
   }
 }
 
-export async function hasIpClaimedDistribution(distributionId: string, ip: string): Promise<boolean> {
-  for await (const entry of kv.list<ClaimedItem>({ prefix: ["claimed_items", distributionId] })) {
-    if (entry.value.claimer_ip === ip) {
-      return true;
-    }
-  }
-  return false;
-}
 
 export async function getClaimedItemsByUser(userId: number): Promise<ClaimedItem[]> {
   const claimedItems: ClaimedItem[] = [];

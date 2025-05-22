@@ -1,5 +1,5 @@
 import { Handlers, PageProps } from "$fresh/server.ts";
-import { getDistribution, getClaimedItems, claimItem, hasIpClaimedDistribution, Distribution, ClaimedItem } from "../../utils/db.ts";
+import { getDistribution, getClaimedItems, claimItem, Distribution, ClaimedItem } from "../../utils/db.ts";
 import Header from "../../components/Header.tsx";
 
 interface User {
@@ -16,7 +16,6 @@ interface Data {
   claimedItems: ClaimedItem[];
   user: User | null;
   canClaim: boolean;
-  alreadyClaimedByIp: boolean;
   claimedItemIndex: number | null;
 }
 
@@ -28,7 +27,6 @@ export const handler: Handlers<Data> = {
     const user = ctx.state.user as User | undefined;
 
     let canClaim = false;
-    let alreadyClaimedByIp = false;
     let claimedItemIndex: number | null = null;
 
     if (distribution && user) {
@@ -37,14 +35,9 @@ export const handler: Handlers<Data> = {
         // Check if already claimed by this user
         const userClaim = claimedItems.find(item => item.claimed_by === user.id);
         if (!userClaim) {
-          // Check if already claimed by this IP
-          const ip = req.headers.get("X-Forwarded-For") || req.headers.get("Remote-Addr") || "unknown"; // Get client IP
-          alreadyClaimedByIp = await hasIpClaimedDistribution(distributionId, ip);
-          if (!alreadyClaimedByIp) {
-            // Check if there are available items
-            if (claimedItems.length < distribution.content.length) {
-              canClaim = true;
-            }
+          // Check if there are available items
+          if (claimedItems.length < distribution.content.length) {
+            canClaim = true;
           }
         } else {
           claimedItemIndex = userClaim.item_index;
@@ -57,7 +50,6 @@ export const handler: Handlers<Data> = {
       claimedItems,
       user: user || null,
       canClaim,
-      alreadyClaimedByIp,
       claimedItemIndex,
     });
   },
@@ -76,11 +68,6 @@ export const handler: Handlers<Data> = {
       return new Response("Trust level not met", { status: 403 });
     }
 
-    const ip = req.headers.get("X-Forwarded-For") || req.headers.get("Remote-Addr") || "unknown"; // Get client IP
-    const alreadyClaimedByIp = await hasIpClaimedDistribution(distributionId, ip);
-    if (alreadyClaimedByIp) {
-      return new Response("Already claimed by this IP", { status: 403 });
-    }
 
     const claimedItems = await getClaimedItems(distributionId);
     if (claimedItems.length >= distribution.content.length) {
@@ -101,7 +88,7 @@ export const handler: Handlers<Data> = {
        return new Response("All items claimed (race condition)", { status: 409 });
     }
 
-    const claimedItem = await claimItem(distributionId, nextItemIndex, user.id, ip);
+    const claimedItem = await claimItem(distributionId, nextItemIndex, user.id);
 
     if (claimedItem) {
       return new Response(null, {
@@ -117,7 +104,7 @@ export const handler: Handlers<Data> = {
 };
 
 export default function DistributionPage({ data }: PageProps<Data>) {
-  const { distribution, claimedItems, user, canClaim, alreadyClaimedByIp, claimedItemIndex } = data;
+  const { distribution, claimedItems, user, canClaim, claimedItemIndex } = data;
 
   if (!distribution) {
     return (
@@ -163,8 +150,6 @@ export default function DistributionPage({ data }: PageProps<Data>) {
                   领取项目
                 </button>
               </form>
-            ) : alreadyClaimedByIp ? (
-              <p class="text-red-500">您已领取过此分发。</p>
             ) : (
               <p class="text-gray-600">您不符合领取条件或所有项目已被领取。</p>
             )}
